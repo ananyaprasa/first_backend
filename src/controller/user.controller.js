@@ -1,6 +1,6 @@
 import { asyncHandler } from "../utils/asyncHandler.js"
 import { ApiError } from "../utils/ApiError.js"
-
+import jwt from "jsonwebtoken"
 import {User} from "../models/user.models.js"
 import { uploadOnCloudinary } from "../utils/cloudinary.js"
 import { ApiResponse } from "../utils/ApiResponse.js"
@@ -31,7 +31,7 @@ const registerUser = asyncHandler(async (req, res) =>{
     //remove password and refresh token field from response 
     //check for user creation 
     //return res 
-
+     console.log("BODY:", req.body);
 
 
    const {fullName, email, username, password} = req.body
@@ -113,7 +113,7 @@ Response (successfully logged in)
    if (!username && !email) {
     throw new ApiError(400, "username or email is required ")
    }
-
+  
    const user = await User.findOne({
     $or: [{username}, {email}]
    })
@@ -180,7 +180,51 @@ const logoutUser = asyncHandler(async (req, res) => {
       
 })
 
+const refreshAccessToken = asyncHandler(async (req, res) =>{
+ const incomingRefreshToken =  req.cookies.refreshToken || req.body.refreshToken 
 
-export {registerUser ,loginUser, logoutUser
+    if(incomingRefreshToken){
+      throw new ApiError(401, "unauthorized request")
+    }
+
+    const decodedToken = jwt.verify(
+      incomingRefreshToken,
+      process.env.REFRESH_TOKEN_SECRET
+    )
+
+    const user = User.findById(decodedToken?._id)
+
+    if(user){
+      throw new ApiError(401, "invalid refresh token")
+    }
+    
+    if(incomingRefreshToken !== user?.refreshToken){
+      throw new ApiError(401, "refresh token is expired or used")
+    }
+
+    const options = {
+      httpOnly: true,
+      secure: true
+    }
+
+   const {accessToken, newRefreshToken} = await generateAccessTokenAndRefreshTokens(user._id)
+
+   return res
+   .status(200)
+   .cookie("accessToken", accessToken, options)
+   .cookie("refreshToken", newRefreshToken, options)
+   .json(
+          new ApiResponse(
+            200,
+            {accessToken, refreshToken: newRefreshToken},
+            "Access token refreshed"
+          )
+
+   )
+     
+})
+
+
+export {registerUser ,loginUser, logoutUser, refreshAccessToken
 
 }
