@@ -59,10 +59,50 @@ const addComment = asyncHandler(async (req, res) => {
 
 const updateComment = asyncHandler(async (req, res) => {
     // TODO: update a comment
+    const {commentId} = req.params;
+    const {content} = req.body;
+
+    const comment = await Comment.findById(commentId);
+
+    if(!comment) {
+        return res
+        .status(404)
+        .json(new ApiResponse(404, null, "comment not found"));
+
+    }
+    if(comment.owner.toString() !== req.user._id.toString()){
+        return res.status(403)
+        .json(new ApiResponse(403, null, "not authorized to update this comment"));
+
+    }
+        comment.content = content;
+        await comment.save();
+        return res 
+        .status(200)
+        .json(new ApiResponse(200, comment, "comment updated successfully"));
 })
 
 const deleteComment = asyncHandler(async (req, res) => {
     // TODO: delete a comment
+    const {commentId} = req.params
+    
+    const comment = await Comment.findById(commentId);
+
+    if(!comment){
+        return res
+        .status(404)
+        .json(new ApiResponse(404, null, "comment not found"));
+    }
+    if (comment.owner.toString() !== req.user._id.toString()) {
+        return res
+            .status(403)
+            .json(new ApiResponse(403, null, "Not authorized to delete this comment"));
+    }
+
+    await comment.deleteOne();
+    return res
+    .status(200)
+    .json(new ApiResponse(200, null, "comment deleted successfully"));
 })
 
 export {
