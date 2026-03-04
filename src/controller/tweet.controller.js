@@ -39,10 +39,53 @@ const getUserTweets = asyncHandler(async (req, res) => {
 
 const updateTweet = asyncHandler(async (req, res) => {
     //TODO: update tweet
+    const {tweetId} = req.params;
+    const {content} = req.body;
+
+    if(!isValidObjectId(tweetId)){
+        throw new ApiError(400, "Invalid tweet Id");
+    }
+
+    const tweet = await Tweet.findById(tweetId);
+    if(!tweet){
+        throw new ApiError(404, "Tweet not found");
+    }
+
+    if(tweet.owner.toString() !== req.user._id.toString()){
+        throw new ApiError(403, "Not authorized");
+    }
+
+    tweet.content = content || tweet.content;
+
+    await tweet.save();
+    return res.status(200).json(
+        new ApiResponse(200, tweet, "Tweet updated Successfully")
+    )
 })
 
 const deleteTweet = asyncHandler(async (req, res) => {
     //TODO: delete tweet
+    const {tweetId} = req.params;
+
+    if (!isValidObjectId(tweetId)){
+        throw new ApiError(400, "Invalid tweet ID");
+    }
+
+    const tweet = await Tweet.findById(tweetId);
+
+    if(!tweet){
+        throw new ApiError(404, "Tweet not found");
+    }
+
+    if(tweet.owner.toString() !== req.user._id.toString()){
+        throw new ApiError(403, "Not authorized");
+    }
+
+    await tweet.deleteOne();
+
+    return res
+    .status(200)
+    .json(new ApiResponse(200, null, "Tweet deleted successfully"))
 })
 
 export {
